@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ReWash Tracker – Pending & Daily Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#031326;--bg2:#06284a;--bg3:#0a4f7a;
+  --glass:rgba(10,40,70,.55);--glass2:rgba(255,255,255,.06);
+  --line:rgba(120,210,255,.18);
+  --aqua:#37dcff;--teal:#1fd1b5;--blue:#3b8bff;
+  --ok:#3be8a5;--warn:#ffb547;--bad:#ff5d73;
+  --tx:#e8f7ff;--mute:#8fb6cc;
+  --r:16px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:var(--tx);min-height:100vh;
+  background:linear-gradient(180deg,var(--bg1),var(--bg2) 55%,var(--bg3));background-attachment:fixed;overflow-x:hidden}
+h1,h2,h3,.brand b,.kpi .v{font-family:Outfit,Inter,system-ui,sans-serif}
+button,input,select{font:inherit;color:inherit}
+
+/* ---------- water background ---------- */
+.bg{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.bg .wave{position:absolute;left:0;bottom:0;width:200%;height:210px;opacity:.5}
+.bg .wave svg{width:100%;height:100%;display:block}
+.bg .w1{animation:slide 22s linear infinite;opacity:.35}
+.bg .w2{animation:slide 15s linear infinite reverse;opacity:.3;bottom:-14px}
+.bg .w3{animation:slide 30s linear infinite;opacity:.22;bottom:-30px}
+@keyframes slide{to{transform:translateX(-50%)}}
+.bub{position:absolute;bottom:-40px;border-radius:50%;border:1.5px solid rgba(160,230,255,.45);
+  background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.5),rgba(255,255,255,.04) 60%);
+  animation:rise linear infinite}
+@keyframes rise{0%{transform:translate(0,0) scale(.6);opacity:0}10%{opacity:.9}
+  50%{transform:translate(18px,-50vh) scale(1)}100%{transform:translate(-14px,-110vh) scale(1.1);opacity:0}}
+
+/* ---------- layout ---------- */
+.wrap{position:relative;z-index:1;max-width:1500px;margin:0 auto;padding:18px 20px 90px}
+header.top{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand .logo{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+  background:linear-gradient(145deg,var(--aqua),var(--blue));box-shadow:0 8px 24px rgba(55,220,255,.35);animation:float 4s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-4px)}}
+.brand b{font-size:22px;letter-spacing:.3px;display:block;line-height:1}
+.brand small{color:var(--mute);font-size:12px}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:var(--glass);border:1px solid var(--line);font-size:13px;color:var(--mute)}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--mute);display:inline-block}
+.chip.on{color:var(--tx)}.chip.on i{background:var(--ok);box-shadow:0 0 0 0 rgba(59,232,165,.6);animation:ping 1.8s infinite}
+@keyframes ping{70%{box-shadow:0 0 0 8px rgba(59,232,165,0)}100%{box-shadow:0 0 0 0 rgba(59,232,165,0)}}
+
+.btn{position:relative;overflow:hidden;cursor:pointer;border:1px solid var(--line);background:var(--glass2);padding:9px 14px;border-radius:12px;
+  font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:8px;transition:transform .15s,background .2s,border-color .2s}
+.btn:hover{background:rgba(55,220,255,.14);border-color:rgba(55,220,255,.5);transform:translateY(-1px)}
+.btn.pri{background:linear-gradient(135deg,var(--aqua),var(--blue));color:#02263f;border:0;box-shadow:0 8px 22px rgba(55,220,255,.3)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.wa{background:#1faa59;border:0;color:#fff}
+.btn.danger:hover{background:rgba(255,93,115,.2);border-color:var(--bad)}
+.btn.sm{padding:5px 9px;font-size:12px;border-radius:9px}
+.rip{position:absolute;border-radius:50%;background:rgba(255,255,255,.45);transform:scale(0);animation:ripple .6s ease-out forwards;pointer-events:none}
+@keyframes ripple{to{transform:scale(4);opacity:0}}
+
+nav.tabs{display:flex;gap:6px;padding:5px;background:var(--glass);border:1px solid var(--line);border-radius:16px;width:max-content;max-width:100%;overflow:auto;margin-bottom:16px;backdrop-filter:blur(10px)}
+nav.tabs button{background:none;border:0;padding:10px 18px;border-radius:12px;cursor:pointer;color:var(--mute);font-weight:600;white-space:nowrap;transition:.25s}
+nav.tabs button.act{background:linear-gradient(135deg,rgba(55,220,255,.28),rgba(59,139,255,.28));color:#fff;box-shadow:inset 0 0 0 1px rgba(55,220,255,.5)}
+.panel{display:none;animation:fadeUp .5s ease both}.panel.act{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+.card{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);backdrop-filter:blur(12px);box-shadow:0 14px 40px rgba(0,10,30,.35)}
+.pad{padding:16px}
+
+/* ---------- hero upload ---------- */
+.hero{display:grid;place-items:center;text-align:center;padding:46px 20px;border:2px dashed rgba(55,220,255,.4);border-radius:24px;
+  background:linear-gradient(180deg,rgba(55,220,255,.06),rgba(31,209,181,.06));cursor:pointer;transition:.3s;position:relative;overflow:hidden}
+.hero:hover,.hero.drag{border-color:var(--aqua);background:rgba(55,220,255,.12);transform:scale(1.005)}
+.hero h2{font-size:28px;margin:12px 0 6px}
+.hero p{color:var(--mute);margin:4px 0}
+.hero .drop{width:92px;height:92px;animation:float 3.2s ease-in-out infinite}
+.hero .steps{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px}
+.hero .steps span{background:var(--glass2);border:1px solid var(--line);padding:6px 12px;border-radius:999px;font-size:12.5px;color:var(--mute)}
+
+/* ---------- KPI ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px}
+.kpi{position:relative;overflow:hidden;padding:14px 16px 16px}
+.kpi .l{color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.8px}
+.kpi .v{font-size:32px;font-weight:800;margin-top:4px}
+.kpi .s{font-size:12px;color:var(--mute)}
+.kpi::after{content:"";position:absolute;left:-10%;right:-10%;bottom:-18px;height:34px;background:radial-gradient(60% 100% at 50% 100%,rgba(55,220,255,.4),transparent);animation:swell 4s ease-in-out infinite}
+@keyframes swell{50%{transform:translateY(-6px) scaleX(1.1)}}
+
+/* ---------- toolbar ---------- */
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.bar .grow{flex:1}
+.in,.bar select,.bar input[type=date],.bar input[type=search]{background:rgba(2,18,36,.6);border:1px solid var(--line);border-radius:10px;padding:8px 10px;outline:none;color:var(--tx)}
+.in:focus,.bar select:focus,.bar input:focus{border-color:var(--aqua);box-shadow:0 0 0 3px rgba(55,220,255,.18)}
+select option{background:#06284a}
+.lbl{font-size:12px;color:var(--mute);margin-right:-4px}
+input[type=date]{color-scheme:dark}
+
+/* ---------- table ---------- */
+.tbl-wrap{overflow:auto;max-height:68vh;border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:9px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid rgba(120,210,255,.1)}
+th{position:sticky;top:0;background:#0a3a5f;color:#bfeaff;font-size:11.5px;text-transform:uppercase;letter-spacing:.7px;z-index:2}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.c,th.c{text-align:center}
+tbody tr{animation:rowIn .5s ease both;animation-delay:calc(var(--i,0)*28ms);transition:background .2s}
+@keyframes rowIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+tbody tr:hover{background:rgba(55,220,255,.1)}
+tfoot td{font-weight:700;background:rgba(55,220,255,.1);position:sticky;bottom:0}
+.cust{white-space:normal;min-width:190px;font-weight:600}
+.plus{font-size:10px;background:var(--blue);padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle}
+.fail{color:#fff;background:rgba(255,93,115,.25);border:1px solid rgba(255,93,115,.6);padding:2px 9px;border-radius:8px;font-weight:700;font-size:12px}
+.age{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12.5px}
+.age svg{width:11px;height:13px}
+.a0{background:rgba(59,232,165,.18);color:var(--ok)}.a1{background:rgba(55,220,255,.18);color:var(--aqua)}
+.a2{background:rgba(255,181,71,.2);color:var(--warn)}.a3{background:rgba(255,93,115,.22);color:#ff8a9b;animation:pulseRed 1.6s infinite}
+@keyframes pulseRed{50%{box-shadow:0 0 0 5px rgba(255,93,115,.0);background:rgba(255,93,115,.38)}}
+.empty{padding:40px;text-align:center;color:var(--mute)}
+.note{background:rgba(255,181,71,.1);border:1px solid rgba(255,181,71,.4);color:#ffd9a0;padding:9px 12px;border-radius:12px;margin-bottom:12px;font-size:13px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* ---------- status tab ---------- */
+.sum{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-bottom:14px}
+.sum table td,.sum table th{padding:6px 10px}
+.sum tbody tr{animation:none}
+.sum .gt td{font-weight:800;background:rgba(55,220,255,.12)}
+.big{font-family:Outfit;font-size:30px;font-weight:800;color:var(--aqua)}
+td .in{width:100%;min-width:70px;padding:6px 8px}
+td select.in{min-width:130px}
+.warnbox{outline:2px solid var(--bad)}
+
+/* ---------- insights ---------- */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px}
+.hbar{display:grid;grid-template-columns:130px 1fr 80px;gap:10px;align-items:center;margin:8px 0;font-size:13px}
+.wide .hbar{grid-template-columns:230px 1fr 80px}
+.hbar .t{background:rgba(2,18,36,.6);border-radius:999px;height:16px;overflow:hidden;position:relative}
+.hbar .f{height:100%;border-radius:999px;width:0;transition:width 1.2s cubic-bezier(.2,.8,.2,1);
+  background:linear-gradient(90deg,var(--blue),var(--aqua),var(--teal));background-size:200% 100%;animation:flow 3s linear infinite}
+@keyframes flow{to{background-position:-200% 0}}
+.hbar .f.red{background-image:linear-gradient(90deg,#ff5d73,#ffb547,#ff5d73)}
+.hbar .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--mute)}
+.hbar .k{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cols{display:flex;align-items:flex-end;gap:10px;height:190px;padding-top:10px}
+.cols .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;color:var(--mute)}
+.cols .bar2{width:100%;max-width:46px;border-radius:10px 10px 4px 4px;background:linear-gradient(180deg,var(--aqua),var(--blue));height:0;transition:height 1.2s cubic-bezier(.2,.8,.2,1);position:relative;overflow:hidden}
+.cols .bar2::after{content:"";position:absolute;left:0;right:0;top:0;height:8px;background:rgba(255,255,255,.35);animation:topw 2s ease-in-out infinite}
+@keyframes topw{50%{transform:translateY(3px)}}
+.cols b{color:var(--tx);font-size:12px;margin-bottom:3px}
+
+/* ---------- loader ---------- */
+#loader{position:fixed;inset:0;z-index:50;display:none;place-items:center;background:rgba(2,12,26,.86);backdrop-filter:blur(8px)}
+#loader.show{display:grid;animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0}}
+.lbox{width:min(430px,92vw);text-align:center}
+.drum{width:230px;height:230px;filter:drop-shadow(0 12px 40px rgba(55,220,255,.35))}
+.spin{transform-origin:100px 100px;animation:spin 3.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#waterLevel{transform:translateY(178px);transition:transform .45s ease-out}
+.waveMove{animation:wv 1.6s linear infinite}
+@keyframes wv{to{transform:translateX(50px)}}
+.lb{animation:lbub 2.2s ease-in infinite}
+@keyframes lbub{0%{transform:translateY(0);opacity:0}20%{opacity:.9}100%{transform:translateY(-110px);opacity:0}}
+.pct{font-family:Outfit;font-size:46px;font-weight:800;margin-top:4px}
+.lsteps{list-style:none;margin:10px auto 0;padding:0;text-align:left;display:inline-block;font-size:13.5px}
+.lsteps li{color:#5f8296;padding:3px 0;transition:.3s}
+.lsteps li::before{content:"○ ";}
+.lsteps li.act{color:var(--aqua)}.lsteps li.act::before{content:"◔ ";animation:blink 1s infinite}
+.lsteps li.done{color:var(--ok)}.lsteps li.done::before{content:"● "}
+@keyframes blink{50%{opacity:.3}}
+
+/* ---------- modal ---------- */
+.ov{position:fixed;inset:0;z-index:40;background:rgba(2,12,26,.75);backdrop-filter:blur(5px);display:none;place-items:center;padding:16px}
+.ov.show{display:grid;animation:fadeIn .25s}
+.modal{width:min(900px,100%);max-height:86vh;display:flex;flex-direction:column;animation:fadeUp .35s}
+.modal .hd{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.modal .bd{overflow:auto;flex:1}
+.modal .ft{padding:12px 16px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+
+/* ---------- footer / toast ---------- */
+footer.dev{position:fixed;left:0;right:0;bottom:0;z-index:5;text-align:center;padding:9px 12px;font-size:12.5px;color:#cfeeff;
+  background:linear-gradient(180deg,transparent,rgba(2,14,30,.92) 45%)}
+footer.dev b{color:var(--aqua)}footer.dev a{color:var(--ok);text-decoration:none;font-weight:600}
+#toast{position:fixed;left:50%;bottom:62px;transform:translate(-50%,30px);background:#0d3b61;border:1px solid var(--aqua);padding:10px 16px;border-radius:12px;opacity:0;pointer-events:none;transition:.3s;z-index:60}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+.printonly{display:none}
+@media (max-width:820px){.sum{grid-template-columns:1fr}.hbar{grid-template-columns:90px 1fr 60px}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* ---------- print ---------- */
+@page{size:A4 landscape;margin:9mm}
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff!important;color:#000}
+  .bg,header.top,nav.tabs,.no-print,#loader,.ov,#toast,.kpis,.bar,.note,.hero{display:none!important}
+  .wrap{padding:0;max-width:none}
+  .card{background:none;border:0;box-shadow:none;backdrop-filter:none}
+  .printonly{display:block}
+  .tbl-wrap{max-height:none;overflow:visible}
+  table{font-size:10.5px;color:#000}
+  th{position:static;background:#e8e8e8!important;color:#000;border:1px solid #444}
+  td{border:1px solid #777;padding:4px 6px;color:#000}
+  tbody tr{animation:none}
+  tfoot td{position:static;background:#f0f0f0!important;color:#000}
+  .fail{background:none;border:0;color:#000}.age{background:none!important;color:#000!important;animation:none;padding:0}.age svg{display:none}
+  .plus{display:none}
+  td .in{border:0;background:none;color:#000;padding:0;appearance:none;-webkit-appearance:none}
+  .sum{grid-template-columns:1.2fr 1fr}
+  .sum .gt td{background:#eee!important}
+  .big{color:#000}
+  .ptitle{display:flex!important;justify-content:space-between;font-weight:700;font-size:15px;margin-bottom:6px;color:#000}
+  .pfoot{display:block!important;position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:10px;color:#444}
+  .panel{animation:none}
+}
+.ptitle,.pfoot{display:none}
+</style>
+</head>
+<body>
+<div class="bg" id="bg">
+  <div class="wave w3"><svg viewBox="0 0 1200 120" preserveAspectRatio="none"><path fill="#37dcff" d="M0 60 Q150 10 300 60 T600 60 T900 60 T1200 60 V120 H0Z"/></svg></div>
+  <div class="wave w2"><svg viewBox="0 0 1200 120" preserveAspectRatio="none"><path fill="#3b8bff" d="M0 70 Q150 20 300 70 T600 70 T900 70 T1200 70 V120 H0Z"/></svg></div>
+  <div class="wave w1"><svg viewBox="0 0 1200 120" preserveAspectRatio="none"><path fill="#1fd1b5" d="M0 80 Q150 30 300 80 T600 80 T900 80 T1200 80 V120 H0Z"/></svg></div>
+</div>
+
+<div class="wrap">
+  <header class="top no-print">
+    <div class="brand">
+      <div class="logo"><svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C12 2 5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13z"/></svg></div>
+      <div><b>ReWash Tracker</b><small>Pending Re-Wash &amp; Daily Status System</small></div>
+    </div>
+    <div class="tools">
+      <span class="chip" id="fileChip"><i></i><span>Master file load nahi hui</span></span>
+      <label class="lbl" for="repDate">Report date</label>
+      <input class="in" type="date" id="repDate">
+      <button class="btn pri" id="btnUpload">⬆ Master Sheet Upload</button>
+      <input type="file" id="file" accept=".xlsx,.xlsm,.xls" hidden>
+    </div>
+  </header>
+
+  <nav class="tabs no-print" id="tabs">
+    <button class="act" data-t="pending">📋 Pending Re-Wash</button>
+    <button data-t="status">📊 Daily Re-Wash Status</button>
+    <button data-t="insights">💧 Insights</button>
+  </nav>
+
+  <!-- ================= PENDING ================= -->
+  <section class="panel act" id="p-pending">
+    <div id="hero" class="hero no-print">
+      <svg class="drop" viewBox="0 0 24 24"><defs><linearGradient id="dg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cf0ff"/><stop offset="1" stop-color="#2f7bff"/></linearGradient></defs><path fill="url(#dg)" d="M12 2C12 2 5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13z"/><path fill="#fff" opacity=".55" d="M9 14a3 3 0 0 0 2 3 .7.7 0 0 0 .3-1.3A2 2 0 0 1 10.4 14c0-.6-1.4-.8-1.4 0z"/></svg>
+      <h2>Master Sheet yahan drop karein</h2>
+      <p>ya click karke <b>MASTER_SHEET_2026.xlsx</b> select karein</p>
+      <p style="font-size:13px">Pending Re-Wash list khud ban jayegi — ageing, totals, PDF, Excel, WhatsApp sab ready.</p>
+      <div class="steps"><span>1️⃣ Upload</span><span>2️⃣ Auto FAIL → RE WASH filter</span><span>3️⃣ Print / Excel / WhatsApp</span></div>
+    </div>
+
+    <div id="pendingBody" style="display:none">
+      <div class="kpis" id="kpis"></div>
+      <div class="bar no-print">
+        <input type="search" id="q" placeholder="🔍 Customer / design / job / batch…" style="min-width:230px">
+        <select id="fMach"><option value="">All machines</option></select>
+        <select id="fCust"><option value="">All customers</option></select>
+        <span class="lbl">Max age</span>
+        <select id="fAge"><option value="30">30 din</option><option value="45" selected>45 din</option><option value="60">60 din</option><option value="90">90 din</option><option value="all">Sab (purane bhi)</option></select>
+        <select id="fSort"><option value="rec">Purana pehle</option><option value="age">Age (zyada)</option><option value="meters">Meters (zyada)</option><option value="cust">Customer A-Z</option></select>
+        <span class="grow"></span>
+        <button class="btn" id="bXlsx">⬇ Excel</button>
+        <button class="btn pri" id="bPdfDl">⬇ PDF</button>
+        <button class="btn" id="bPdf">🖨 Print</button>
+        <button class="btn" id="bCopy">📋 Copy</button>
+        <button class="btn wa" id="bWa">WhatsApp</button>
+      </div>
+      <div id="notes"></div>
+      <div class="card"><div class="tbl-wrap">
+        <div class="ptitle"><span id="ptDate"></span><span>PENDING RE WASH DATA</span></div>
+        <table id="tPending"></table>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ================= STATUS ================= -->
+  <section class="panel" id="p-status">
+    <div class="bar no-print">
+      <label class="lbl" for="stDate">Status date</label>
+      <input class="in" type="date" id="stDate">
+      <select id="stHist"><option value="">📅 Purani date load…</option></select>
+      <span class="grow"></span>
+      <button class="btn pri" id="stAddPend">＋ Pending se add karein</button>
+      <button class="btn" id="stAddRow">＋ Manual row</button>
+      <button class="btn" id="stXlsx">⬇ Excel</button>
+      <button class="btn pri" id="stPdfDl">⬇ PDF</button>
+      <button class="btn" id="stPdf">🖨 Print</button>
+      <button class="btn" id="stImp">📄 Status PDF import</button><input type="file" id="stFile" accept=".pdf" hidden>
+      <button class="btn" id="stCopy">📋 Copy</button>
+      <button class="btn wa" id="stWa">WhatsApp</button>
+      <button class="btn danger" id="stClear">🗑 Clear</button>
+    </div>
+    <div class="ptitle"><span>DAILY RE-WASH STATUS</span><span id="stPtDate"></span></div>
+    <div class="sum">
+      <div class="card"><table id="sumM"></table></div>
+      <div class="card"><table id="sumT"></table>
+        <div style="padding:10px 16px;text-align:right"><span style="color:var(--mute);font-size:12px">TOTAL P.METER</span><div class="big" id="stTotal">0</div></div>
+      </div>
+    </div>
+    <div class="card"><div class="tbl-wrap"><table id="tStatus"></table></div></div>
+  </section>
+
+  <!-- ================= INSIGHTS ================= -->
+  <section class="panel" id="p-insights">
+    <div id="insEmpty" class="card pad empty">Insights ke liye pehle Master Sheet upload karein.</div>
+    <div id="insBody" style="display:none">
+      <div class="grid2">
+        <div class="card pad"><h3 style="margin-top:0">💧 Pending meters — Machine wise</h3><div id="chMach"></div></div>
+        <div class="card pad"><h3 style="margin-top:0">🏷 Pending meters — Customer wise (Top 8)</h3><div id="chCust"></div></div>
+        <div class="card pad"><h3 style="margin-top:0">⏳ Ageing buckets (jobs)</h3><div class="cols" id="chAge"></div></div>
+        <div class="card pad"><h3 style="margin-top:0">📈 Monthly FAIL % (1st wash, 2026)</h3><div class="cols" id="chMonth"></div></div>
+        <div class="card pad" style="grid-column:1/-1"><h3 style="margin-top:0">⚠ Machine wise FAIL % (1st wash, min 30 tests)</h3><div id="chFail" class="wide"></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- print footer -->
+<div class="pfoot">Development by Sarfaraz · 0328-3363738</div>
+<footer class="dev no-print">💧 ReWash Tracker · Development by <b>Sarfaraz</b> · <a href="https://wa.me/923283363738" target="_blank" rel="noopener">📞 0328-3363738</a></footer>
+
+<!-- loader -->
+<div id="loader"><div class="lbox">
+  <svg class="drum" viewBox="0 0 200 200">
+    <defs>
+      <clipPath id="clipDrum"><circle cx="100" cy="100" r="78"/></clipPath>
+      <linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6cf0ff"/><stop offset="1" stop-color="#0a6fd0"/></linearGradient>
+    </defs>
+    <circle cx="100" cy="100" r="92" fill="#0a2742" stroke="#37dcff" stroke-width="4"/>
+    <circle cx="100" cy="100" r="84" fill="none" stroke="rgba(55,220,255,.3)" stroke-width="2" stroke-dasharray="6 8" class="spin"/>
+    <circle cx="100" cy="100" r="78" fill="#051a2e"/>
+    <g clip-path="url(#clipDrum)">
+      <g id="waterLevel"><g class="waveMove"><path fill="url(#wg)" d="M-100 0 Q-75 -12 -50 0 T0 0 T50 0 T100 0 T150 0 T200 0 T250 0 V260 H-100 Z"/></g></g>
+      <g fill="rgba(255,255,255,.55)">
+        <circle class="lb" cx="70" cy="170" r="4" style="animation-delay:0s"/><circle class="lb" cx="105" cy="175" r="3" style="animation-delay:.7s"/>
+        <circle class="lb" cx="135" cy="168" r="5" style="animation-delay:1.3s"/><circle class="lb" cx="90" cy="178" r="2.5" style="animation-delay:1.8s"/>
+      </g>
+      <g class="spin"><rect x="62" y="82" width="30" height="22" rx="6" fill="#ff7a9a" opacity=".9"/><rect x="108" y="96" width="30" height="22" rx="6" fill="#ffd166" opacity=".9"/><rect x="84" y="120" width="26" height="20" rx="6" fill="#8be9fd" opacity=".9"/></g>
+    </g>
+    <circle cx="100" cy="100" r="78" fill="none" stroke="#37dcff" stroke-width="3"/>
+  </svg>
+  <div class="pct"><span id="lPct">0</span>%</div>
+  <div style="color:var(--mute)" id="lMsg">Shuru ho raha hai…</div>
+  <ul class="lsteps" id="lSteps">
+    <li>File read ho rahi hai</li><li>Excel decode (heavy file)</li><li>Columns map &amp; rows tayyar</li>
+    <li>FAIL → RE WASH filter</li><li>Grouping &amp; ageing</li><li>Dashboard ready</li>
+  </ul>
+</div></div>
+
+<!-- pending picker modal -->
+<div class="ov" id="ovPick"><div class="card modal">
+  <div class="hd"><b>Pending se Status mein add karein</b>
+    <input type="search" class="in" id="pkQ" placeholder="search…"></div>
+  <div class="bd"><table id="tPick"></table></div>
+  <div class="ft"><span id="pkCnt" style="color:var(--mute)"></span>
+    <span><button class="btn" id="pkCancel">Cancel</button> <button class="btn pri" id="pkOk">Add selected</button></span></div>
+</div></div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ======================================================================
+   ReWash Tracker — Development by Sarfaraz | 0328-3363738
+   ====================================================================== */
+const XLSX_URL='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pad=n=>String(n).padStart(2,'0');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf=n=>Math.round(n).toLocaleString('en-US');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const raf=()=>new Promise(r=>requestAnimationFrame(()=>r()));
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}},keys(){try{return Object.keys(localStorage)}catch(e){return[]}}};
+
+/* ---------- date helpers (Excel serials) ---------- */
+const serialOfYMD=(y,m,d)=>Date.UTC(y,m,d)/864e5+25569;
+const todaySerial=()=>{const n=new Date();return serialOfYMD(n.getFullYear(),n.getMonth(),n.getDate())};
+const dOf=s=>new Date(Math.round(Math.floor(s)*864e5-25569*864e5));
+const fmtD=s=>{if(s==null)return'-';const d=dOf(s);return pad(d.getUTCDate())+'-'+MON[d.getUTCMonth()]+'-'+d.getUTCFullYear()};
+const fmtDU=s=>fmtD(s).toUpperCase();
+const iso=s=>dOf(s).toISOString().slice(0,10);
+const fromISO=v=>{const [y,m,d]=v.split('-').map(Number);return serialOfYMD(y,m-1,d)};
+const fmtT=f=>{if(f==null)return'-';f=f-Math.floor(f);const m=Math.round(f*1440)%1440,h=Math.floor(m/60);return (h%12||12)+':'+pad(m%60)+' '+(h<12?'AM':'PM')};
+const num=v=>typeof v==='number'&&isFinite(v)?v:null;
+const norm=v=>String(v??'').replace(/\s+/g,' ').trim().toUpperCase();
+
+/* ---------- state ---------- */
+const DB={rows:[],pending:[],loaded:false,file:''};
+const V={maxAge:'45',q:'',mach:'',cust:'',sort:'rec'};
+let REP=todaySerial();
+let HIDDEN=new Set(JSON.parse(store.get('rw_hidden')||'[]'));
+const saveHidden=()=>store.set('rw_hidden',JSON.stringify([...HIDDEN]));
+
+/* ---------- ripple on buttons ---------- */
+document.addEventListener('click',e=>{const b=e.target.closest('.btn');if(!b)return;const r=b.getBoundingClientRect(),s=Math.max(r.width,r.height);
+  const sp=document.createElement('span');sp.className='rip';sp.style.cssText=`width:${s}px;height:${s}px;left:${e.clientX-r.left-s/2}px;top:${e.clientY-r.top-s/2}px`;b.appendChild(sp);setTimeout(()=>sp.remove(),650)});
+
+/* ---------- bubbles bg ---------- */
+(function(){const bg=$('#bg');for(let i=0;i<22;i++){const b=document.createElement('span');b.className='bub';const s=6+Math.random()*26;
+  b.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;animation-duration:${9+Math.random()*14}s;animation-delay:${-Math.random()*20}s`;bg.appendChild(b)}})();
+
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),2400)}
+
+/* ---------- tabs ---------- */
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  $$('#tabs button').forEach(x=>x.classList.toggle('act',x===b));
+  $$('.panel').forEach(p=>p.classList.toggle('act',p.id==='p-'+b.dataset.t));
+  if(b.dataset.t==='insights')drawInsights()});
+const activeTab=()=>$('#tabs .act').dataset.t;
+
+/* =====================================================================
+   LOADING + PARSING  (Web Worker so the water animation stays smooth)
+   ===================================================================== */
+function parseCore(X,buf,post){
+  post(18,'read');
+  const wb=X.read(buf,{type:'array',dense:true,cellFormula:false,cellHTML:false,cellStyles:false,cellNF:false});
+  post(58,'parse');
+  const ws=wb.Sheets[wb.SheetNames[0]];
+  const ref=X.utils.decode_range(ws['!ref']);ref.e.c=Math.min(ref.e.c,60);
+  return X.utils.sheet_to_json(ws,{header:1,raw:true,range:ref,blankrows:false,defval:null});
+}
+function workerParse(buf,post){
+  return new Promise((res,rej)=>{
+    let w;
+    try{
+      const src="importScripts('"+XLSX_URL+"');"+parseCore.toString()+";self.onmessage=function(e){try{var a=parseCore(XLSX,e.data,function(v,m){postMessage({t:'p',v:v,m:m})});postMessage({t:'done',aoa:a})}catch(err){postMessage({t:'err',m:''+err})}}";
+      w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+    }catch(e){return rej(e)}
+    w.onmessage=e=>{const d=e.data;if(d.t==='p')post(d.v,d.m);else if(d.t==='done'){w.terminate();res(d.aoa)}else{w.terminate();rej(new Error(d.m))}};
+    w.onerror=e=>{w.terminate();rej(new Error('worker'))};
+    w.postMessage(buf,[buf]);
+  });
+}
+function loadXLSXLib(){return new Promise((res,rej)=>{if(window.XLSX)return res();const s=document.createElement('script');s.src=XLSX_URL;s.onload=res;s.onerror=()=>rej(new Error('XLSX library load nahi hui — internet check karein'));document.head.appendChild(s)})}
+
+/* loader progress */
+const L={cur:0,tgt:0,raf:0,creep:0};
+function lTick(){L.cur+=(L.tgt-L.cur)*.12;if(Math.abs(L.tgt-L.cur)<.2)L.cur=L.tgt;
+  $('#lPct').textContent=Math.round(L.cur);$('#waterLevel').style.transform=`translateY(${178-156*L.cur/100}px)`;
+  if(L.cur!==L.tgt||$('#loader').classList.contains('show'))L.raf=requestAnimationFrame(lTick)}
+function lSet(p,msg,step){L.tgt=Math.max(L.tgt,p);if(msg)$('#lMsg').textContent=msg;
+  if(step!=null)$$('#lSteps li').forEach((li,i)=>{li.className=i<step?'done':i===step?'act':''})}
+function lStart(){L.cur=0;L.tgt=0;$('#lPct').textContent=0;$$('#lSteps li').forEach(li=>li.className='');$('#loader').classList.add('show');cancelAnimationFrame(L.raf);lTick();
+  L.creep=setInterval(()=>{if(L.tgt<56&&L.tgt>=18)L.tgt+=.35},120)}
+async function lEnd(){clearInterval(L.creep);lSet(100,'Tayyar! 💧',6);await sleep(900);$('#loader').classList.remove('show')}
+
+async function handleFile(f){
+  if(!f)return;
+  lStart();lSet(4,'File read ho rahi hai…',0);
+  try{
+    const buf=await f.arrayBuffer();
+    lSet(12,'Excel decode ho rahi hai (6–7 MB file thora time leti hai)…',1);
+    let aoa;
+    try{await loadXLSXLib().catch(()=>{});aoa=await workerParse(buf.slice(0),(v,m)=>lSet(v,null,1))}
+    catch(err){ // fallback: main thread
+      await loadXLSXLib();aoa=parseCore(window.XLSX,buf,(v)=>lSet(v,null,1))}
+    lSet(62,'Columns map ho rahe hain…',2);await sleep(60);
+    extract(aoa);
+    lSet(75,'FAIL → RE WASH filter lag raha hai…',3);await sleep(250);
+    buildPending();
+    lSet(90,'Grouping & ageing…',4);await sleep(250);
+    DB.file=f.name;DB.loaded=true;
+    renderAll();
+    await lEnd();
+    toast(`✅ ${nf(DB.rows.length)} rows load · ${DB.pending.length} pending groups`);
+  }catch(err){
+    clearInterval(L.creep);$('#loader').classList.remove('show');
+    alert('File process nahi ho saki:\n'+err.message);console.error(err);
+  }
+}
+
+/* ---------- extract needed columns via header names ---------- */
+function extract(aoa){
+  let hi=aoa.findIndex(r=>r.some(c=>norm(c)==='ERP JOB.'||norm(c)==='ERP JOB'));
+  if(hi<0)throw new Error('Header row nahi mili ("ERP JOB." column chahiye). Sahi Master Sheet upload karein.');
+  const idx={};aoa[hi].forEach((v,i)=>{const k=norm(v);if(k)(idx[k]=idx[k]||[]).push(i)});
+  const g=(k,o=0)=>{const a=idx[k];return a&&a[o]!=null?a[o]:-1};
+  const C={cust:g('CUSTOMER'),job:g('ERP JOB.')>=0?g('ERP JOB.'):g('ERP JOB'),design:g('DESIGN'),color:g('COLOR'),ver:g('VERSION'),prog:g('PROGRAM METERS'),mach:g('MACHINE NAME'),
+    r1d:g('REC DATE',0),r1t:g('REC TIME',0),p1d:g('REP DATE',0),p1t:g('REP TIME',0),b1:g('B#',0),d1:g('DECISION',0),n1:g('NEXT PROCESS',0),
+    r2d:g('REC DATE',1),p2d:g('REP DATE',1),b2:g('B#',1),d2:g('DECISION',1),n2:g('NEXT PROCESS',1)};
+  for(const k of['cust','job','design','prog','mach','r1d','d1','n1'])if(C[k]<0)throw new Error('Column nahi mila: '+k);
+  const rows=[];
+  for(let i=hi+1;i<aoa.length;i++){const r=aoa[i];if(!r||r[C.job]==null&&r[C.design]==null)continue;
+    const v=k=>C[k]>=0?r[C[k]]:null;
+    rows.push({cust:String(v('cust')??'').trim(),job:String(v('job')??'').trim(),design:String(v('design')??'').trim(),color:String(v('color')??'').trim(),
+      ver:String(v('ver')??'').trim(),prog:num(v('prog'))||0,mach:String(v('mach')??'').trim(),
+      r1d:num(v('r1d')),r1t:num(v('r1t')),p1d:num(v('p1d')),p1t:num(v('p1t')),b1:String(v('b1')??'').trim(),d1:norm(v('d1')),n1:norm(v('n1')),
+      r2d:num(v('r2d')),p2d:num(v('p2d')),b2:String(v('b2')??'').trim(),d2:norm(v('d2')),n2:norm(v('n2'))})}
+  DB.rows=rows;
+}
+
+/* ---------- pending logic ---------- */
+const isFail=x=>/FAIL/.test(x), isRW=x=>/RE\s*-?\s*WASH/.test(x);
+function buildPending(){
+  const groups=new Map();
+  for(const r of DB.rows){
+    if(!(isFail(r.d1)&&isRW(r.n1)))continue;
+    const s2empty=r.r2d==null&&r.p2d==null&&(r.d2===''||r.d2==='-');
+    const refail=!s2empty&&isFail(r.d2)&&isRW(r.n2);
+    if(!s2empty&&!refail)continue;
+    const recD=refail?(r.r2d??r.r1d):r.r1d;
+    const key=[r.cust,r.design,r.color,r.ver,r.mach,recD,refail?r.b2:r.b1].join('|');
+    let g=groups.get(key);
+    if(!g){g={key,cust:r.cust,design:r.design,color:r.color||'-',ver:r.ver,mach:r.mach,meters:0,jobs:[],recD,recT:r.r1t,repD:refail?r.p2d:r.p1d,repT:refail?null:r.p1t,b:refail?r.b2:r.b1,refail};groups.set(key,g)}
+    g.meters+=r.prog;g.jobs.push(r.job);
+  }
+  DB.pending=[...groups.values()];
+}
+
+function viewList(){
+  const rep=Math.floor(REP);let hiddenAge=0,hiddenMan=0;
+  let list=DB.pending.map(p=>({...p,age:p.recD==null?null:Math.max(0,rep-Math.floor(p.recD))}));
+  const q=V.q.toLowerCase();
+  list=list.filter(p=>{
+    if(V.mach&&p.mach!==V.mach)return false;if(V.cust&&p.cust!==V.cust)return false;
+    if(q&&!(p.cust+' '+p.design+' '+p.jobs.join(' ')+' '+p.b+' '+p.ver+' '+p.color).toLowerCase().includes(q))return false;
+    if(HIDDEN.has(p.key)){hiddenMan++;return false}
+    if(V.maxAge!=='all'&&p.age!=null&&p.age>+V.maxAge){hiddenAge++;return false}
+    return true});
+  const S={rec:(a,b)=>(a.recD??1e9)-(b.recD??1e9)||(a.recT??0)-(b.recT??0),age:(a,b)=>(b.age??-1)-(a.age??-1),meters:(a,b)=>b.meters-a.meters,cust:(a,b)=>a.cust.localeCompare(b.cust)};
+  list.sort(S[V.sort]);
+  return {list,hiddenAge,hiddenMan};
+}
+const ageCls=a=>a==null?'a1':a<=3?'a0':a<=7?'a1':a<=14?'a2':'a3';
+const drop='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C12 2 5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13z"/></svg>';
+
+function renderPending(){
+  if(!DB.loaded)return;
+  $('#hero').style.display='none';$('#pendingBody').style.display='block';
+  const {list,hiddenAge,hiddenMan}=viewList();
+  const tot=list.reduce((a,p)=>a+Math.round(p.meters),0);
+  const ages=list.filter(p=>p.age!=null).map(p=>p.age);
+  const oldest=ages.length?Math.max(...ages):0,avg=ages.length?ages.reduce((a,b)=>a+b,0)/ages.length:0;
+  const custN=new Set(list.map(p=>p.cust)).size;
+  $('#kpis').innerHTML=[
+    ['Pending Jobs',list.length,'groups',0],['Total Meters',tot,'pending re-wash',0],['Oldest',oldest,'din purana',0],['Avg Age',avg,'din',1],['Customers',custN,'involved',0]
+  ].map(k=>`<div class="card kpi"><div class="l">${k[0]}</div><div class="v" data-count="${k[1]}" data-dec="${k[3]}">0</div><div class="s">${k[2]}</div></div>`).join('');
+  countUp();
+  let notes='';
+  if(hiddenAge)notes+=`<div class="note">⏳ ${hiddenAge} purane job(s) (${V.maxAge} din se zyada) hide hain. <button class="btn sm" id="nShowOld">Sab dikhayein</button></div>`;
+  if(hiddenMan)notes+=`<div class="note">🙈 ${hiddenMan} job(s) aapne manually hide kiye hain. <button class="btn sm" id="nRestore">Restore</button></div>`;
+  $('#notes').innerHTML=notes;
+  $('#ptDate').textContent='DATE: '+fmtDU(REP);
+  const head=['SR#','Customer','ERP JOB.','Design','Colour','Version','Machine','Program Meters','Rec Date','Rec Time','Rep Date','Rep Time','B#','Decision','No# of Aging Date'];
+  let h='<thead><tr>'+head.map((x,i)=>`<th class="${i===7||i===14?'num':i===13?'c':''}">${x}</th>`).join('')+'<th class="no-print"></th></tr></thead><tbody>';
+  if(!list.length)h+=`<tr><td colspan="16" class="empty">Koi pending re-wash nahi 🎉</td></tr>`;
+  list.forEach((p,i)=>{
+    h+=`<tr style="--i:${Math.min(i,25)}"><td>${i+1}</td><td class="cust">${esc(p.cust)}</td><td>${esc(p.jobs[0])}${p.jobs.length>1?`<span class="plus" title="${esc(p.jobs.join(', '))}">+${p.jobs.length-1}</span>`:''}</td>
+    <td>${esc(p.design)}</td><td>${esc(p.color)}</td><td>${esc(p.ver)}</td><td>${esc(p.mach)}</td><td class="num">${nf(p.meters)}</td>
+    <td>${fmtD(p.recD)}</td><td>${fmtT(p.recT)}</td><td>${fmtD(p.repD)}</td><td>${fmtT(p.repT)}</td><td>${esc(p.b)}</td>
+    <td class="c"><span class="fail">${p.refail?'RE-FAIL':'FAIL'}</span></td>
+    <td class="num"><span class="age ${ageCls(p.age)}">${drop}${p.age??'-'}</span></td>
+    <td class="no-print"><button class="btn sm" data-hide="${esc(p.key)}" title="Hide (done)">✕</button></td></tr>`});
+  h+=`</tbody><tfoot><tr><td colspan="7" style="text-align:right">TOTAL</td><td class="num">${nf(tot)}</td><td colspan="8"></td></tr></tfoot>`;
+  $('#tPending').innerHTML=h;
+  $('#nShowOld')&&($('#nShowOld').onclick=()=>{V.maxAge='all';$('#fAge').value='all';renderPending()});
+  $('#nRestore')&&($('#nRestore').onclick=()=>{DB.pending.forEach(p=>HIDDEN.delete(p.key));saveHidden();renderPending()});
+  $$('[data-hide]').forEach(b=>b.onclick=()=>{HIDDEN.add(b.dataset.hide);saveHidden();renderPending();toast('Hide kar diya (Restore ka button upar milega)')});
+  window._view=list;
+}
+function countUp(){$$('[data-count]').forEach(el=>{const t=+el.dataset.count,d=+el.dataset.dec,t0=performance.now();
+  (function f(n){const p=Math.min(1,(n-t0)/900),e=1-Math.pow(1-p,3),v=t*e;el.textContent=d?v.toFixed(1):Math.round(v).toLocaleString('en-US');if(p<1)requestAnimationFrame(f)})(t0)})}
+
+function fillFilters(){
+  const ms=[...new Set(DB.pending.map(p=>p.mach))].sort(),cs=[...new Set(DB.pending.map(p=>p.cust))].sort();
+  $('#fMach').innerHTML='<option value="">All machines</option>'+ms.map(m=>`<option>${esc(m)}</option>`).join('');
+  $('#fCust').innerHTML='<option value="">All customers</option>'+cs.map(m=>`<option>${esc(m)}</option>`).join('');
+}
+['q','fMach','fCust','fAge','fSort'].forEach(id=>$('#'+id).addEventListener(id==='q'?'input':'change',e=>{
+  const k={q:'q',fMach:'mach',fCust:'cust',fAge:'maxAge',fSort:'sort'}[id];V[k]=e.target.value;renderPending()}));
+
+/* ---------- exports (pending) ---------- */
+function pendingAOA(){
+  const rows=window._view||[];
+  const a=[['DATE: '+fmtDU(REP),'','','','','','','','PENDING RE WASH DATA'],[],
+    ['SR#','Customer','ERP JOB.','Design','Colour','Version','Machine','Program Meters','Rec Date','Rec Time','Rep Date','Rep Time','B#','Decision','No# of Aging Date']];
+  rows.forEach((p,i)=>a.push([i+1,p.cust,p.jobs.join(' + '),p.design,p.color,p.ver,p.mach,Math.round(p.meters),fmtD(p.recD),fmtT(p.recT),fmtD(p.repD),fmtT(p.repT),p.b,p.refail?'RE-FAIL':'FAIL',p.age]));
+  a.push([]);a.push(['','','','','','','TOTAL',rows.reduce((s,p)=>s+Math.round(p.meters),0)]);
+  a.push([]);a.push(['Development by Sarfaraz | 0328-3363738']);
+  return a;
+}
+async function saveXlsx(aoa,name,widths){await loadXLSXLib();const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=widths.map(w=>({wch:w}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Sheet1');XLSX.writeFile(wb,name)}
+function pendingText(){
+  const rows=window._view||[];let t=`*PENDING RE WASH DATA*\n📅 ${fmtDU(REP)}\n━━━━━━━━━━━━\n`;
+  rows.forEach((p,i)=>{t+=`${i+1}) *${p.cust}*\n   ${p.design}${p.color&&p.color!=='-'?' / '+p.color:''} • ${p.ver} • ${p.mach}\n   ${nf(p.meters)} m • B# ${p.b} • ⏳ ${p.age??'-'} din\n`});
+  t+=`━━━━━━━━━━━━\n*TOTAL: ${nf(rows.reduce((s,p)=>s+Math.round(p.meters),0))} m* (${rows.length} jobs)\n_Development by Sarfaraz_`;return t}
+async function copyText(t){try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}toast('Copy ho gaya ✅')}
+const wa=t=>window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
+$('#bXlsx').onclick=()=>saveXlsx(pendingAOA(),`PENDING_RE_WASH_${fmtDU(REP)}.xlsx`,[5,38,18,22,14,11,12,14,13,10,13,10,12,10,16]);
+$('#bPdf').onclick=()=>{document.title='PENDING RE WASH '+fmtDU(REP);window.print()};
+$('#bCopy').onclick=()=>copyText(pendingText());
+$('#bWa').onclick=()=>wa(pendingText());
+
+/* =====================================================================
+   DAILY STATUS
+   ===================================================================== */
+const MACHINES=['EXHAUST-DYE','PAD STEAM-01','PAD STEAM-02','PAD STEAM-03','ROPE-01','ROPE-02','BENNINGER','RED FLAG','BURG.MERCERIZE','NEW GOLLER','GOLLER'];
+const PTYPES=['DIGITAL','DYED','FLAT BED','ROTARY'];
+const MMAP={'PADSTM-01':'PAD STEAM-01','PADSTM-02':'PAD STEAM-02','PADSTM-03':'PAD STEAM-03','E-D':'EXHAUST-DYE','ED':'EXHAUST-DYE','BURG MERZ':'BURG.MERCERIZE','B.M':'BURG.MERCERIZE','BM':'BURG.MERCERIZE','ROPE-01':'ROPE-01','ROPE-02':'ROPE-02','NEW GOLLER':'NEW GOLLER','GOLLER':'GOLLER'};
+const mapMach=m=>{const k=norm(m);return MMAP[k]||(MACHINES.includes(k)?k:'')};
+const TYPEMEM=JSON.parse(store.get('rw_ptype')||'{}');
+let ST={date:todaySerial()-1,items:[]};
+let uid=1;
+const stKey=()=>'rwstat:'+iso(ST.date);
+function stSave(){store.set(stKey(),JSON.stringify(ST.items));stHist()}
+function stLoad(){try{ST.items=JSON.parse(store.get(stKey())||'[]')}catch(e){ST.items=[]}ST.items.forEach(i=>i.id=uid++)}
+function stHist(){
+  const ks=store.keys().filter(k=>k.startsWith('rwstat:')).sort().reverse();
+  $('#stHist').innerHTML='<option value="">📅 Purani date load…</option>'+ks.map(k=>{let it=[];try{it=JSON.parse(store.get(k))}catch(e){}return it.length?`<option value="${k.slice(7)}">${fmtD(fromISO(k.slice(7)))} — ${it.length} jobs / ${nf(it.reduce((a,x)=>a+(+x.meters||0),0))} m</option>`:''}).join('');
+}
+function stTotals(){
+  const M={},T={};MACHINES.forEach(m=>M[m]={n:0,m:0});PTYPES.forEach(t=>T[t]={n:0,m:0});let un={n:0,m:0},unM={n:0,m:0},tot=0;
+  ST.items.forEach(x=>{const m=+x.meters||0;tot+=m;
+    if(M[x.machine]){M[x.machine].n++;M[x.machine].m+=m}else{unM.n++;unM.m+=m}
+    if(T[x.ptype]){T[x.ptype].n++;T[x.ptype].m+=m}else{un.n++;un.m+=m}});
+  return{M,T,un,unM,tot,n:ST.items.length};
+}
+function stSummary(){
+  const t=stTotals();
+  let a=`<thead><tr><th>MACHINE NAME</th><th class="num">Total</th><th class="num">Meters</th></tr></thead><tbody>`;
+  MACHINES.forEach(m=>a+=`<tr><td>${m}</td><td class="num">${t.M[m].n}</td><td class="num">${nf(t.M[m].m)}</td></tr>`);
+  if(t.unM.n)a+=`<tr><td style="color:var(--bad)">⚠ MACHINE SET NAHI</td><td class="num">${t.unM.n}</td><td class="num">${nf(t.unM.m)}</td></tr>`;
+  a+=`<tr class="gt"><td>Grand Total</td><td class="num">${t.n}</td><td class="num">${nf(t.tot)}</td></tr></tbody>`;
+  $('#sumM').innerHTML=a;
+  let b=`<thead><tr><th>MACHINE</th><th class="num">Total</th><th class="num">Meters</th></tr></thead><tbody>`;
+  PTYPES.forEach(k=>b+=`<tr><td>${k}</td><td class="num">${t.T[k].n}</td><td class="num">${nf(t.T[k].m)}</td></tr>`);
+  if(t.un.n)b+=`<tr><td style="color:var(--bad)">⚠ TYPE SET NAHI</td><td class="num">${t.un.n}</td><td class="num">${nf(t.un.m)}</td></tr>`;
+  b+=`<tr class="gt"><td>Grand Total</td><td class="num">${t.n}</td><td class="num">${nf(t.tot)}</td></tr></tbody>`;
+  $('#sumT').innerHTML=b;
+  const el=$('#stTotal');const from=+el.dataset.v||0;el.dataset.v=t.tot;const t0=performance.now();
+  (function f(n){const p=Math.min(1,(n-t0)/600);el.textContent=nf(from+(t.tot-from)*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(f)})(t0);
+}
+function stRender(){
+  $('#stPtDate').textContent='DATE: '+fmtDU(ST.date);
+  const opt=(arr,v,ph)=>`<option value="">${ph}</option>`+arr.map(x=>`<option${x===v?' selected':''}>${x}</option>`).join('');
+  let h=`<thead><tr><th>S.NO</th><th>DATE</th><th>MACHINE NAME</th><th>CUSTOMER</th><th>DESIGN</th><th>VERSION</th><th class="num">P.METER</th><th>BATCHER</th><th>MACHINE</th><th class="no-print"></th></tr></thead><tbody>`;
+  if(!ST.items.length)h+=`<tr><td colspan="10" class="empty">Koi entry nahi — "Pending se add karein" dabayein 💧</td></tr>`;
+  ST.items.forEach((x,i)=>{h+=`<tr style="--i:${Math.min(i,20)}" data-id="${x.id}"><td>${i+1}</td><td>${fmtD(ST.date).replace(/-(\d{2})(\d{2})$/,'-$2')}</td>
+   <td><select class="in ${x.machine?'':'warnbox'}" data-f="machine">${opt(MACHINES,x.machine,'— select —')}</select></td>
+   <td><input class="in" data-f="customer" value="${esc(x.customer)}" style="min-width:210px"></td>
+   <td><input class="in" data-f="design" value="${esc(x.design)}"></td>
+   <td><input class="in" data-f="version" value="${esc(x.version)}" style="min-width:90px"></td>
+   <td class="num"><input class="in" data-f="meters" type="number" value="${x.meters}" style="text-align:right;min-width:90px"></td>
+   <td><input class="in" data-f="batcher" value="${esc(x.batcher)}"></td>
+   <td><select class="in ${x.ptype?'':'warnbox'}" data-f="ptype">${opt(PTYPES,x.ptype,'— select —')}</select></td>
+   <td class="no-print"><button class="btn sm danger" data-del="${x.id}">✕</button></td></tr>`});
+  h+='</tbody>';$('#tStatus').innerHTML=h;stSummary();
+}
+$('#tStatus').addEventListener('input',stEdit);$('#tStatus').addEventListener('change',stEdit);
+function stEdit(e){const el=e.target.closest('[data-f]');if(!el)return;const id=+el.closest('tr').dataset.id,x=ST.items.find(i=>i.id===id);if(!x)return;
+  x[el.dataset.f]=el.dataset.f==='meters'?(+el.value||0):el.value;
+  if(el.tagName==='SELECT')el.classList.toggle('warnbox',!el.value);
+  if(el.dataset.f==='ptype'&&x.design&&x.ptype){TYPEMEM[x.design]=x.ptype;store.set('rw_ptype',JSON.stringify(TYPEMEM))}
+  stSave();stSummary()}
+$('#tStatus').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;ST.items=ST.items.filter(i=>i.id!==+b.dataset.del);stSave();stRender()});
+const newItem=o=>({id:uid++,machine:'',customer:'',design:'',version:'',meters:0,batcher:'',ptype:'',...o});
+$('#stAddRow').onclick=()=>{ST.items.push(newItem());stSave();stRender()};
+$('#stClear').onclick=()=>{if(ST.items.length&&confirm('Is date ki saari entries delete karein?')){ST.items=[];stSave();stRender()}};
+$('#stDate').onchange=e=>{ST.date=fromISO(e.target.value);stLoad();stRender()};
+$('#stHist').onchange=e=>{if(!e.target.value)return;ST.date=fromISO(e.target.value);$('#stDate').value=e.target.value;stLoad();stRender();e.target.value=''};
+
+/* pending picker */
+let PICK=[];
+$('#stAddPend').onclick=()=>{
+  if(!DB.loaded){toast('Pehle Master Sheet upload karein');return}
+  PICK=viewList().list;$('#pkQ').value='';pkRender();$('#ovPick').classList.add('show')};
+function pkRender(){
+  const q=$('#pkQ').value.toLowerCase();
+  let h='<thead><tr><th></th><th>Customer</th><th>Design</th><th>Version</th><th>Machine</th><th class="num">Meters</th><th>B#</th><th class="num">Age</th></tr></thead><tbody>';
+  PICK.forEach((p,i)=>{if(q&&!(p.cust+p.design+p.b+p.ver).toLowerCase().includes(q))return;
+    const dup=ST.items.some(x=>x.design===p.design&&x.version===p.ver&&x.customer===p.cust&&x.batcher===p.b);
+    h+=`<tr><td><input type="checkbox" data-pk="${i}" ${dup?'disabled':''}></td><td class="cust">${esc(p.cust)}</td><td>${esc(p.design)}</td><td>${esc(p.ver)}</td><td>${esc(p.mach)}</td><td class="num">${nf(p.meters)}</td><td>${esc(p.b)}${dup?' <small>(added)</small>':''}</td><td class="num"><span class="age ${ageCls(p.age)}">${p.age??'-'}</span></td></tr>`});
+  $('#tPick').innerHTML=h+'</tbody>';pkCnt()}
+const pkCnt=()=>{$('#pkCnt').textContent=$$('[data-pk]:checked').length+' selected'};
+$('#pkQ').oninput=pkRender;$('#tPick').addEventListener('change',pkCnt);
+$('#pkCancel').onclick=()=>$('#ovPick').classList.remove('show');
+$('#pkOk').onclick=()=>{
+  $$('[data-pk]:checked').forEach(c=>{const p=PICK[+c.dataset.pk];
+    ST.items.push(newItem({machine:mapMach(p.mach),customer:p.cust,design:p.design,version:p.ver,meters:Math.round(p.meters),batcher:p.b,ptype:TYPEMEM[p.design]||''}))});
+  stSave();stRender();$('#ovPick').classList.remove('show');toast('Add ho gaya — machine / type check kar lein')};
+$('#ovPick').addEventListener('click',e=>{if(e.target.id==='ovPick')$('#ovPick').classList.remove('show')});
+
+/* status exports */
+function stAOA(){
+  const t=stTotals(),a=[['DAILY RE-WASH STATUS','','','','','','DATE : '+fmtDU(ST.date)],[],['MACHINE NAME','Total','Meters','','MACHINE','Total','Meters']];
+  const L=MACHINES.map(m=>[m,t.M[m].n,Math.round(t.M[m].m)]);L.push(['Grand Total',t.n,Math.round(t.tot)]);
+  const R=PTYPES.map(k=>[k,t.T[k].n,Math.round(t.T[k].m)]);R.push(['Grand Total',t.n,Math.round(t.tot)]);
+  for(let i=0;i<L.length;i++)a.push([...L[i],'',...(R[i]||['','',''])]);
+  a.push([],['','','','','TOTAL P.METER',Math.round(t.tot)],[],['S.NO','DATE','MACHINE NAME','CUSTOMER','DESIGN','VERSION','P.METER','BATCHER','MACHINE']);
+  ST.items.forEach((x,i)=>a.push([i+1,fmtD(ST.date),x.machine,x.customer,x.design,x.version,Math.round(+x.meters||0),x.batcher,x.ptype]));
+  a.push([],['Development by Sarfaraz | 0328-3363738']);return a}
+function stText(){const t=stTotals();let s=`*DAILY RE-WASH STATUS*\n📅 ${fmtDU(ST.date)}\n━━━━━━━━━━━━\n`;
+  ST.items.forEach((x,i)=>s+=`${i+1}) *${x.customer}*\n   ${x.design} • ${x.version} • ${x.machine} • ${x.ptype||'-'}\n   ${nf(x.meters)} m • B# ${x.batcher}\n`);
+  s+=`━━━━━━━━━━━━\n`;MACHINES.filter(m=>t.M[m].n).forEach(m=>s+=`${m}: ${t.M[m].n} jobs / ${nf(t.M[m].m)} m\n`);
+  PTYPES.filter(k=>t.T[k].n).forEach(k=>s+=`▪ ${k}: ${t.T[k].n} / ${nf(t.T[k].m)} m\n`);
+  return s+`*TOTAL: ${nf(t.tot)} m* (${t.n} jobs)\n_Development by Sarfaraz_`}
+$('#stXlsx').onclick=()=>saveXlsx(stAOA(),`RE-WASH_STATUS_${fmtDU(ST.date)}.xlsx`,[18,12,22,38,22,12,12,16,12]);
+$('#stPdf').onclick=()=>{document.title='DAILY RE-WASH STATUS '+fmtDU(ST.date);window.print()};
+$('#stCopy').onclick=()=>copyText(stText());$('#stWa').onclick=()=>wa(stText());
+
+/* =====================================================================
+   INSIGHTS
+   ===================================================================== */
+function hbars(el,data,fmt,red){
+  const mx=Math.max(1,...data.map(d=>d[1]));
+  el.innerHTML=data.map(d=>`<div class="hbar"><div class="k" title="${esc(d[0])}">${esc(d[0])}</div><div class="t"><div class="f ${red?'red':''}" data-w="${d[1]/mx*100}"></div></div><div class="n">${fmt(d[1])}</div></div>`).join('')||'<div class="empty">No data</div>';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.querySelectorAll('.f').forEach(f=>f.style.width=f.dataset.w+'%')));
+}
+function cols(el,data,fmt){
+  const mx=Math.max(1,...data.map(d=>d[1]));
+  el.innerHTML=data.map(d=>`<div class="col"><b>${fmt(d[1])}</b><div class="bar2" data-h="${d[1]/mx*100}"></div><span>${esc(d[0])}</span></div>`).join('');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.querySelectorAll('.bar2').forEach(b=>b.style.height=Math.max(3,b.dataset.h*.75)+'%')));
+}
+function drawInsights(){
+  if(!DB.loaded)return;$('#insEmpty').style.display='none';$('#insBody').style.display='block';
+  const {list}=viewList();
+  const byM={},byC={};list.forEach(p=>{byM[p.mach]=(byM[p.mach]||0)+p.meters;byC[p.cust]=(byC[p.cust]||0)+p.meters});
+  hbars($('#chMach'),Object.entries(byM).sort((a,b)=>b[1]-a[1]),v=>nf(v)+' m');
+  hbars($('#chCust'),Object.entries(byC).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>[k.replace(/\(.*?\)/g,'').trim(),v]),v=>nf(v)+' m');
+  const B=[['0-3 din',0],['4-7',0],['8-14',0],['15+',0]];list.forEach(p=>{const a=p.age||0;B[a<=3?0:a<=7?1:a<=14?2:3][1]++});
+  cols($('#chAge'),B,v=>v);
+  const mm={},mf={};DB.rows.forEach(r=>{if(r.r1d==null||!(r.d1==='PASS'||r.d1==='FAIL'))return;const d=dOf(r.r1d);if(d.getUTCFullYear()!==2026)return;const k=d.getUTCMonth();mm[k]=(mm[k]||0)+1;if(r.d1==='FAIL')mf[k]=(mf[k]||0)+1});
+  cols($('#chMonth'),Object.keys(mm).map(Number).sort((a,b)=>a-b).map(k=>[MON[k],(mf[k]||0)/mm[k]*100]),v=>v.toFixed(1)+'%');
+  const tm={},fm={};DB.rows.forEach(r=>{if(!r.mach||!(r.d1==='PASS'||r.d1==='FAIL'))return;const k=r.mach.toUpperCase();tm[k]=(tm[k]||0)+1;if(r.d1==='FAIL')fm[k]=(fm[k]||0)+1});
+  hbars($('#chFail'),Object.keys(tm).filter(k=>tm[k]>=30).map(k=>[k+`  (${fm[k]||0}/${tm[k]})`,(fm[k]||0)/tm[k]*100]).sort((a,b)=>b[1]-a[1]).slice(0,12),v=>v.toFixed(2)+'%',true);
+}
+
+
+/* =====================================================================
+   PDF DOWNLOAD (jsPDF) + PDF IMPORT (pdf.js)
+   ===================================================================== */
+const JSPDF_URL='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+const ATBL_URL='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js';
+const PDFJS_URL='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const _ls={};
+const loadScript=u=>_ls[u]||(_ls[u]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=u;s.onload=res;s.onerror=()=>{delete _ls[u];rej(new Error('Library load nahi hui — internet check karein'))};document.head.appendChild(s)}));
+async function newPdf(){await loadScript(JSPDF_URL);await loadScript(ATBL_URL);return new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'})}
+function pdfFoot(doc){const n=doc.getNumberOfPages(),W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight();
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8).setFont('helvetica','normal').setTextColor(90);doc.text('Development by Sarfaraz | 0328-3363738   -   Page '+i+'/'+n,W/2,H-4,{align:'center'})}}
+const GRID={theme:'grid',styles:{fontSize:7.5,cellPadding:1.3,textColor:0,lineColor:[90,90,90],lineWidth:.1,font:'helvetica'},headStyles:{fillColor:[222,222,222],textColor:0,fontStyle:'bold'},footStyles:{fillColor:[238,238,238],textColor:0,fontStyle:'bold'}};
+async function pendingPdf(){
+  try{
+    const rows=window._view||[];if(!rows.length){toast('Koi data nahi');return}
+    const doc=await newPdf();const W=doc.internal.pageSize.getWidth();
+    doc.setFont('helvetica','bold').setFontSize(12).setTextColor(0);doc.text('DATE: '+fmtDU(REP),8,10);doc.text('PENDING RE WASH DATA',W-8,10,{align:'right'});
+    const tot=rows.reduce((a,p)=>a+Math.round(p.meters),0);
+    doc.autoTable({...GRID,startY:13,margin:{left:8,right:8,bottom:10},
+      head:[['SR#','Customer','ERP JOB.','Design','Colour','Version','Machine','Program Meters','Rec Date','Rec Time','Rep Date','Rep Time','B#','Decision','Aging Days']],
+      body:rows.map((p,i)=>[i+1,p.cust,p.jobs[0]+(p.jobs.length>1?' (+'+(p.jobs.length-1)+')':''),p.design,p.color,p.ver,p.mach,nf(p.meters),fmtD(p.recD),fmtT(p.recT),fmtD(p.repD),fmtT(p.repT),p.b,p.refail?'RE-FAIL':'FAIL',p.age??'-']),
+      foot:[[{content:'TOTAL',colSpan:7,styles:{halign:'right'}},nf(tot),{content:'',colSpan:7}]],
+      columnStyles:{0:{halign:'center',cellWidth:8},7:{halign:'right'},9:{cellWidth:17},11:{cellWidth:17},13:{halign:'center'},14:{halign:'right'}}});
+    pdfFoot(doc);doc.save(`PENDING_RE_WASH_${fmtDU(REP)}.pdf`);toast('PDF download ho gayi ✅');
+  }catch(e){alert('PDF nahi bani: '+e.message)}
+}
+async function statusPdf(){
+  try{
+    const doc=await newPdf();const W=doc.internal.pageSize.getWidth(),t=stTotals();
+    doc.setFont('helvetica','bold').setFontSize(14).setTextColor(0);doc.text('DAILY RE-WASH STATUS',W/2,10,{align:'center'});
+    const mb=MACHINES.map(m=>[m,t.M[m].n,nf(t.M[m].m)]);if(t.unM.n)mb.push(['(machine set nahi)',t.unM.n,nf(t.unM.m)]);
+    doc.autoTable({...GRID,startY:14,margin:{left:8},tableWidth:150,head:[['MACHINE NAME','Total','Meters']],body:mb,foot:[['Grand Total',t.n,nf(t.tot)]],columnStyles:{1:{halign:'right'},2:{halign:'right'}}});
+    const endL=doc.lastAutoTable.finalY;
+    const tb=PTYPES.map(k=>[k,t.T[k].n,nf(t.T[k].m)]);if(t.un.n)tb.push(['(type set nahi)',t.un.n,nf(t.un.m)]);
+    doc.autoTable({...GRID,startY:14,margin:{left:175},tableWidth:114,head:[['MACHINE','Total','Meters']],body:tb,foot:[['Grand Total',t.n,nf(t.tot)]],columnStyles:{1:{halign:'right'},2:{halign:'right'}}});
+    const yR=doc.lastAutoTable.finalY+7;doc.setFontSize(10).setFont('helvetica','bold');
+    doc.text('DATE :  '+fmtD(ST.date),175,yR);doc.text('TOTAL P.METER   '+nf(t.tot),175,yR+7);
+    doc.autoTable({...GRID,startY:Math.max(endL,yR+10)+6,margin:{left:8,right:8,bottom:10},
+      head:[['S.NO','DATE','MACHINE NAME','CUSTOMER','DESIGN','VERSION','P.METER','BATCHER','MACHINE']],
+      body:ST.items.map((x,i)=>[i+1,fmtD(ST.date).replace(/-(\d{2})(\d{2})$/,'-$2'),x.machine,x.customer,x.design,x.version,nf(+x.meters||0),x.batcher,x.ptype]),
+      columnStyles:{0:{halign:'center',cellWidth:10},6:{halign:'right'}}});
+    pdfFoot(doc);doc.save(`RE-WASH_STATUS_${fmtDU(ST.date)}.pdf`);toast('PDF download ho gayi ✅');
+  }catch(e){alert('PDF nahi bani: '+e.message)}
+}
+$('#bPdfDl').onclick=pendingPdf;$('#stPdfDl').onclick=statusPdf;
+
+async function importStatusPdf(file){
+  try{
+    await loadScript(PDFJS_URL);pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER;
+    const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+    const items=[];let dateS=null;
+    for(let pn=1;pn<=pdf.numPages;pn++){
+      const tc=await (await pdf.getPage(pn)).getTextContent();
+      const cells=tc.items.filter(i=>i.str.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5]})).sort((a,b)=>b.y-a.y||a.x-b.x);
+      const lines=[];cells.forEach(c=>{const l=lines.find(l=>Math.abs(l.y-c.y)<2.5);l?l.c.push(c):lines.push({y:c.y,c:[c]})});
+      for(const l of lines){const a=l.c.sort((p,q)=>p.x-q.x).map(c=>c.s);
+        const j=a.join(' ');const dm=j.match(/DATE\s*:\s*(\d{1,2})-([A-Za-z]{3})-(\d{4})/i);if(dm)dateS=serialOfYMD(+dm[3],MON.findIndex(m=>m.toLowerCase()===dm[2].toLowerCase()),+dm[1]);
+        if(/^\d+$/.test(a[0])&&/^\d{1,2}-[A-Za-z]{3}-\d{2,4}$/.test(a[1]||'')&&a.length>=9){
+          items.push(newItem({machine:a[2],customer:a[3],design:a[4],version:a[5],meters:parseFloat(a[6].replace(/,/g,''))||0,batcher:a.slice(7,a.length-1).join(' '),ptype:a[a.length-1]}));
+          if(dateS==null){const m=a[1].match(/(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/);let y=+m[3];if(y<100)y+=2000;dateS=serialOfYMD(y,MON.findIndex(x=>x.toLowerCase()===m[2].toLowerCase()),+m[1])}}
+      }}
+    if(!items.length)throw new Error('PDF mein status rows nahi mili (sahi "Daily Re-Wash Status" PDF dein).');
+    if(dateS!=null){ST.date=dateS;$('#stDate').value=iso(dateS)}
+    ST.items=items;stSave();stRender();
+    $$('#tabs button').find(b=>b.dataset.t==='status').click();
+    toast(`📄 PDF se ${items.length} rows import ho gayin`);
+  }catch(e){alert('PDF import nahi hui: '+e.message);console.error(e)}
+}
+$('#stImp').onclick=()=>$('#stFile').click();
+$('#stFile').onchange=e=>{if(e.target.files[0])importStatusPdf(e.target.files[0]);e.target.value=''};
+
+/* =====================================================================
+   WIRING
+   ===================================================================== */
+function renderAll(){
+  fillFilters();renderPending();
+  $('#fileChip').className='chip on';$('#fileChip').lastElementChild.textContent=`${DB.file} · ${nf(DB.rows.length)} rows`;
+  if(activeTab()==='insights')drawInsights();
+}
+$('#btnUpload').onclick=()=>$('#file').click();
+$('#hero').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{handleFile(e.target.files[0]);e.target.value=''};
+['dragover','dragenter'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('#hero').classList.add('drag')}));
+['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('#hero').classList.remove('drag')}));
+document.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(!f)return;/\.pdf$/i.test(f.name)?importStatusPdf(f):handleFile(f)});
+$('#repDate').value=iso(REP);
+$('#repDate').onchange=e=>{if(!e.target.value)return;REP=fromISO(e.target.value);renderPending();if(activeTab()==='insights')drawInsights()};
+$('#stDate').value=iso(ST.date);
+stLoad();stRender();stHist();
+</script>
+</body>
+</html>
